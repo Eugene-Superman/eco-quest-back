@@ -16,6 +16,10 @@ services:
       - .:/app
       - /app/node_modules
     command: npm run start:dev
+    develop:
+      watch:
+        - action: rebuild
+          path: package.json
 
   postgres:
     container_name: eco-quest-postgres

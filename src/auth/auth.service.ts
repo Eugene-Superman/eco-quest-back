@@ -9,9 +9,7 @@ import { SignInDto } from './dto/signin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { TokenExpiration } from './enums/token-expiration';
 import { compareHash, hash } from './utils/hash';
-import { User } from '@prisma/client';
-import e from 'express';
-import { use } from 'passport';
+import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -32,20 +30,28 @@ export class AuthService {
     };
   }
 
-  async generateJwts(userId: string) {
+  async generateAccessToken(userId: string) {
     const payload = { sub: userId };
 
+    return await this.jwtService.signAsync(payload, {
+      expiresIn: TokenExpiration.ACCESS,
+      secret: process.env.JWT_ACCESS_SECRET,
+    });
+  }
+
+  async generateRefreshToken(userId: string) {
+    const payload = { sub: userId };
+
+    return await this.jwtService.signAsync(payload, {
+      expiresIn: TokenExpiration.REFRESH,
+      secret: process.env.JWT_REFRESH_SECRET,
+    });
+  }
+
+  async generateJwts(userId: string) {
     const [accessToken, refreshToken] = await Promise.all([
-      // Access Token
-      this.jwtService.signAsync(payload, {
-        expiresIn: TokenExpiration.ACCESS,
-        secret: process.env.JWT_ACCESS_SECRET,
-      }),
-      // Refresh Token
-      this.jwtService.signAsync(payload, {
-        expiresIn: TokenExpiration.REFRESH,
-        secret: process.env.JWT_REFRESH_SECRET,
-      }),
+      this.generateAccessToken(userId),
+      this.generateRefreshToken(userId),
     ]);
 
     return { accessToken, refreshToken };
@@ -79,11 +85,18 @@ export class AuthService {
       });
       return this.mapUserToResponse(savedUser);
     } catch (error) {
-      if (error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('User with this email already exists');
       }
 
       throw error;
     }
+  }
+
+  async invalidateToken(userId: string) {
+    await this.usersService.updateUser(userId, { tokenHash: null });
   }
 }

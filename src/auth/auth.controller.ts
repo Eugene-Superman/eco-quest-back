@@ -1,8 +1,19 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Req,
+  Res,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { SignInDto } from './dto/signin.dto';
 import { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
+import { RefreshTokenFilter } from './filters/refresh-token.filter';
+import { RequestWithUserAndRefreshToken } from './strategies/jwt.strategy';
 
 @Controller('auth')
 export class AuthController {
@@ -13,7 +24,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/auth/refresh-token',
+      path: '/auth/refresh',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
   }
@@ -48,5 +59,32 @@ export class AuthController {
     this.setRefreshTokenCookie(response, refreshToken);
 
     return { ...userData, accessToken };
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt-access'))
+  async logout(
+    @Req() request: RequestWithUserAndRefreshToken,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.invalidateToken(request.user.userId);
+    response.clearCookie('refreshToken', { path: '/auth/refresh' });
+    return { message: 'Logged out' };
+  }
+
+  @Post('refresh')
+  @UseGuards(AuthGuard('jwt-refresh'))
+  @UseFilters(RefreshTokenFilter)
+  async refreshToken(
+    @Req() request: RequestWithUserAndRefreshToken,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { accessToken, refreshToken } = await this.authService.generateJwts(
+      request.user.userId,
+    );
+    await this.authService.saveRefreshToken(request.user.userId, refreshToken);
+    this.setRefreshTokenCookie(response, refreshToken);
+
+    return { accessToken };
   }
 }

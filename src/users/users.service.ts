@@ -21,6 +21,12 @@ export class UsersService {
     });
   }
 
+  async getUserBy(data: Prisma.UserWhereInput) {
+    return await this.prisma.user.findFirst({
+      where: data,
+    });
+  }
+
   async updateUser(id: string, data: Prisma.UserUpdateInput) {
     await this.prisma.user.update({
       where: { id },

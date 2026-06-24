@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
-import { UserRole } from '../enums/role.enum';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { userConstants } from '../constants';
 
 export class CreateUserDto {
@@ -18,11 +11,8 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
-  readonly fullname: string;
+  readonly fullname?: string;
 
   @IsString()
   readonly nickname: string;
-
-  @IsEnum(UserRole)
-  readonly role: UserRole;
 }
