@@ -85,6 +85,8 @@ export class AuthController {
     await this.authService.saveRefreshToken(request.user.userId, refreshToken);
     this.setRefreshTokenCookie(response, refreshToken);
 
-    return { accessToken };
+    const userData = await this.authService.getUserById(request.user.userId);
+
+    return { ...userData, accessToken };
   }
 }

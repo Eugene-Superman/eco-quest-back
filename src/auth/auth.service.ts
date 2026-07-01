@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
@@ -94,6 +95,16 @@ export class AuthService {
 
       throw error;
     }
+  }
+
+  async getUserById(userId: string) {
+    const user = await this.usersService.getUserBy({ id: userId });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.mapUserToResponse(user);
   }
 
   async invalidateToken(userId: string) {

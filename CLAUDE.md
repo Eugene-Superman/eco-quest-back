@@ -82,10 +82,11 @@ Standard Nest module layout: `AppModule` wires `AuthModule`, `UsersModule`, `Pri
   - `generateAccessToken`/`generateRefreshToken`/`generateJwts` sign tokens with separate secrets and expirations (`TokenExpiration.ACCESS = 15m`, `TokenExpiration.REFRESH = 7d`, see [src/auth/enums/token-expiration.ts](src/auth/enums/token-expiration.ts)).
   - `saveRefreshToken` stores a **bcrypt hash** of the refresh token on the user row (`User.tokenHash`), not the raw token.
   - `signIn`/`signUp` return a sanitized user DTO (via private `mapUserToResponse`, strips `password`/`tokenHash`).
+  - `getUserById` fetches a user by id and returns the same sanitized DTO, throwing `NotFoundException` if missing — used by `refresh` to include the user in the response.
   - `signUp` catches Prisma's unique-constraint error (`P2002`) and rethrows as `ConflictException`.
-  - `invalidateToken` clears `tokenHash` for the user matching a given token.
+  - `invalidateToken` clears `tokenHash` for a given `userId`.
 
-- **AuthController** ([src/auth/auth.controller.ts](src/auth/auth.controller.ts)) — `POST /auth/signin`, `POST /auth/signup`, `POST /auth/refresh`. Refresh tokens are set as an **httpOnly cookie** (`refreshToken`, scoped to path `/auth/refresh-token`, `sameSite: strict`, secure in production), while access tokens are returned in the JSON response body — refresh tokens are never sent in the body.
+- **AuthController** ([src/auth/auth.controller.ts](src/auth/auth.controller.ts)) — `POST /auth/signin`, `POST /auth/signup`, `POST /auth/refresh`, `POST /auth/logout` (guarded by `jwt-access`). Refresh tokens are set as an **httpOnly cookie** (`refreshToken`, scoped to path `/auth/refresh`, `sameSite: strict`, secure in production), while access tokens are returned in the JSON response body — refresh tokens are never sent in the body. `signin`/`signup`/`refresh` all return the sanitized user DTO plus `accessToken`; `logout` invalidates the stored token hash and clears the cookie.
 
 - **Passport strategies** ([src/auth/strategies/jwt.strategy.ts](src/auth/strategies/jwt.strategy.ts)) — two distinct strategies:
   - `JwtAccessStrategy` (`'jwt-access'`) reads the bearer token from the `Authorization` header.
